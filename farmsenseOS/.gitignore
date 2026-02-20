@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+farmsense-code/frontend/admin-dashboard/node_modules/
+farmsense-code/frontend/farmer-dashboard/node_modules/
+farmsense-code/frontend/grant-portal/node_modules/
+farmsense-code/frontend/investor-dashboard/node_modules/
+farmsense-code/frontend/regulatory-portal/node_modules/
+farmsense-code/frontend/research-portal/node_modules/
+**/node_modules/
+dist/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,84 @@
+
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: farmsense
+      POSTGRES_PASSWORD: demo-password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./farmsense-code/backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://postgres:demo-password@db:5432/farmsense
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+  ml:
+    build:
+      context: ./farmsense-code/cloud-processing/ml
+      dockerfile: Dockerfile # Assumes a standard FastAPI Dockerfile
+    ports:
+      - "8001:8001"
+    depends_on:
+      - backend
+
+  farmer-dashboard:
+    build:
+      context: ./farmsense-code/frontend/farmer-dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+
+  admin-dashboard:
+    build:
+      context: ./farmsense-code/frontend/admin-dashboard
+    ports:
+      - "3001:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+
+  regulatory-portal:
+    build:
+      context: ./farmsense-code/frontend/regulatory-portal
+    ports:
+      - "3002:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+
+  research-portal:
+    build:
+      context: ./farmsense-code/frontend/research-portal
+    ports:
+      - "3003:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+
+  investor-dashboard:
+    build:
+      context: ./farmsense-code/frontend/investor-dashboard
+    ports:
+      - "3004:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+
+  grant-portal:
+    build:
+      context: ./farmsense-code/frontend/grant-portal
+    ports:
+      - "3005:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+
+volumes:
+  postgres_data:

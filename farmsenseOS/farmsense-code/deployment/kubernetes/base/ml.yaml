@@ -1,0 +1,46 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: farmsense-ml
+  labels:
+    app: farmsense
+    component: ml
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: farmsense
+      component: ml
+  template:
+    metadata:
+      labels:
+        app: farmsense
+        component: ml
+    spec:
+      containers:
+      - name: ml-service
+        image: farmsense/ml:latest
+        ports:
+        - containerPort: 8001
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "1000m"
+            memory: "2Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: farmsense-ml-svc
+spec:
+  selector:
+    app: farmsense
+    component: ml
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8001
+  type: ClusterIP

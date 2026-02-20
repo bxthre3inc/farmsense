@@ -1,0 +1,35 @@
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+geoalchemy2==0.14.2
+alembic==1.12.1
+
+# Validation & Settings
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Auth & Security
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Geospatial
+rasterio==1.3.9
+shapely==2.0.2
+pyproj==3.6.1
+
+# HTTP Client (async-first)
+aiohttp==3.9.1
+
+# Utilities
+python-dateutil==2.8.2
+pytz==2023.3
+
+# REMOVED (unused):
+# - redis, celery (no distributed task queue needed for pilot)
+# - numpy, pandas, scipy, scikit-learn (anti-AI architecture)
+# - requests (consolidated to aiohttp)

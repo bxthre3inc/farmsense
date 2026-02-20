@@ -1,0 +1,317 @@
+[truncated]
+-end/unified-
+[truncated]
+vestorDashboard.tsx << 'EOF'
+import { useState, useEffect } from 'react';
+import {
+  TrendingUp, Droplets, Shield, Map, Activity, Users, DollarSign,
+  Calendar, ArrowUpRight, ArrowDownRight, Bell, Settings, LogOut,
+  FileText, Download, Filter, Search, ChevronDown, Globe,
+  Zap, BarChart3, PieChart, Award
+} from 'lucide-react';
+import { removeApiKey } from '../shared/api';
+import Login from './Login';
+
+// Types
+interface WaterRight {
+  id: string;
+  owner: string;
+  acre_feet: number;
+  priority_date: string;
+  district: string;
+  status: 'active' | 'pending' | 'suspended';
+  usage_ytd: number;
+}
+
+interface SLVMetric {
+  year: number;
+  aquifer_level: number;
+  recharge_rate: number;
+  sustainability_score: number;
+  compliance_rate: number;
+}
+
+interface InvestmentOpportunity {
+  id: string;
+  name: string;
+  type: 'water_right' | 'land' | 'tech' | 'carbon';
+  value: number;
+  projected_return: number;
+  risk_level: 'low' | 'medium' | 'high';
+  description: string;
+}
+
+const mockWaterRights: WaterRight[] = [
+  { id: 'WR-001', owner: 'Valley Farms LLC', acre_feet: 1250, priority_date: '1882-03-15', district: 'Subdistrict 1', status: 'active', usage_ytd: 840 },
+  { id: 'WR-002', owner: 'Rio Grande Associates', acre_feet: 2100, priority_date: '1895-07-22', district: 'Subdistrict 2', status: 'active', usage_ytd: 1520 },
+  { id: 'WR-003', owner: 'High Desert Ag', acre_feet: 800, priority_date: '1901-11-08', district: 'Subdistrict 1', status: 'pending', usage_ytd: 0 },
+];
+
+const mockSLVHistory: SLVMetric[] = [
+  { year: 2020, aquifer_level: 45.2, recharge_rate: 12.5, sustainability_score: 68, compliance_rate: 94 },
+  { year: 2021, aquifer_level: 44.8, recharge_rate: 11.8, sustainability_score: 67, compliance_rate: 92 },
+  { year: 2022, aquifer_level: 44.1, recharge_rate: 10.2, sustainability_score: 65, compliance_rate: 89 },
+  { year: 2023, aquifer_level: 43.5, recharge_rate: 9.8, sustainability_score: 64, compliance_rate: 91 },
+  { year: 2024, aquifer_level: 42.9, recharge_rate: 11.5, sustainability_score: 66, compliance_rate: 93 },
+  { year: 2025, aquifer_level: 43.2, recharge_rate: 12.1, sustainability_score: 68, compliance_rate: 95 },
+];
+
+const mockOpportunities: InvestmentOpportunity[] = [
+  { id: 'OPP-001', name: 'Conservation Easement - Block 12', type: 'water_right', value: 450000, projected_return: 12.5, risk_level: 'low', description: 'Senior water right with 800 acre-feet annual allocation. Farm transitioning to dryland crops.' },
+  { id: 'OPP-002', name: 'Aquifer Recharge Project', type: 'land', value: 1200000, projected_return: 8.2, risk_level: 'medium', description: '160-acre recharge site with state-matched funding. 15-year water banking agreement.' },
+  { id: 'OPP-003', name: 'Precision Ag Tech Stack', type: 'tech', value: 850000, projected_return: 22.0, risk_level: 'high', description: 'Full VRI, soil sensing, and automation deployment across 3,000 acres.' },
+];
+
+const InvestorDashboard = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+
+  if (!isAuthenticated) {
+    return <Login onLogin={() => setIsAuthenticated(true)} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex">
+      {/* Sidebar */}
+      <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
+        <div className="p-6 border-b border-slate-800">
+          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <TrendingUp className="text-emerald-400 w-6 h-6" />
+            Investor Portal
+          </h1>
+        </div>
+        <nav className="flex-1 p-4 space-y-1">
+          {[
+            { id: 'overview', label: 'Overview', icon: Activity },
+            { id: 'water-rights', label: 'Water Rights', icon: Droplets },
+            { id: 'slv-compliance', label: 'SLV Compliance', icon: Shield },
+            { id: 'opportunities', label: 'Opportunities', icon: Map },
+            { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+          ].map((item) => (
+            <button key={item.id} onClick={() => setActiveTab(item.id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === item.id ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+              <item.icon className="w-5 h-5" />
+              <span className="font-medium text-sm">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="p-4 border-t border-slate-800">
+          <button onClick={() => { removeApiKey(); setIsAuthenticated(false); }}
+            className="w-full flex items-center gap-3 px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-xl">
+            <LogOut className="w-5 h-5" />
+            <span className="font-medium text-sm">Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto">
+        <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-white capitalize">{activeTab.replace('-', ' ')}</h2>
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input type="text" placeholder="Search..." className="bg-slate-900 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder-slate-500 w-64" />
+              </div>
+              <button className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white font-bold">I</button>
+            </div>
+          </div>
+        </header>
+
+        <div className="p-6">
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-4 gap-4">
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                  <p className="text-slate-400 text-sm">Total Water Rights</p>
+                  <p className="text-2xl font-bold text-white mt-1">4,150 acre-ft</p>
+                  <span className="text-emerald-400 text-xs">Active portfolio</span>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                  <p className="text-slate-400 text-sm">SLV Compliance Score</p>
+                  <p className="text-2xl font-bold text-emerald-400 mt-1">95%</p>
+                  <span className="text-emerald-400 text-xs">Above threshold</span>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                  <p className="text-slate-400 text-sm">Portfolio Value</p>
+                  <p className="text-2xl font-bold text-white mt-1">$2.5M</p>
+                  <span className="text-emerald-400 text-xs">+12.5% YTD</span>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                  <p className="text-slate-400 text-sm">Active Opportunities</p>
+                  <p className="text-2xl font-bold text-white mt-1">3</p>
+                  <span className="text-amber-400 text-xs">Under review</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                  <h3 className="text-white font-bold mb-4">SLV Sustainability Trend</h3>
+                  <div className="space-y-3">
+                    {mockSLVHistory.slice(-3).map((m) => (
+                      <div key={m.year} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                        <span className="text-slate-300">{m.year}</span>
+                        <div className="flex items-center gap-4">
+                          <span className="text-slate-400 text-sm">Score: {m.sustainability_score}</span>
+                          <span className={`text-sm ${m.compliance_rate >= 90 ? 'text-emerald-400' : 'text-amber-400'}`}>{m.compliance_rate}% compliance</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                  <h3 className="text-white font-bold mb-4">Recent Opportunities</h3>
+                  <div className="space-y-3">
+                    {mockOpportunities.slice(0, 2).map((opp) => (
+                      <div key={opp.id} className="p-3 bg-slate-800/50 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-white font-medium">{opp.name}</span>
+                          <span className={`text-xs px-2 py-1 rounded-full ${opp.risk_level === 'low' ? 'bg-emerald-500/20 text-emerald-400' : opp.risk_level === 'medium' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'}`}>{opp.risk_level}</span>
+                        </div>
+                        <p className="text-slate-400 text-sm">{opp.projected_return}% projected return</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'water-rights' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-bold">Water Rights Portfolio</h3>
+                <button className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg">
+                  <Download className="w-4 h-4" />
+                  Export Report
+                </button>
+              </div>
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-slate-800/50">
+                    <tr>
+                      <th className="text-left p-4 text-slate-400 text-sm">ID</th>
+                      <th className="text-left p-4 text-slate-400 text-sm">Owner</th>
+                      <th className="text-left p-4 text-slate-400 text-sm">Allocation</th>
+                      <th className="text-left p-4 text-slate-400 text-sm">Priority Date</th>
+                      <th className="text-left p-4 text-slate-400 text-sm">YTD Usage</th>
+                      <th className="text-left p-4 text-slate-400 text-sm">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mockWaterRights.map((wr) => (
+                      <tr key={wr.id} className="border-t border-slate-800">
+                        <td className="p-4 text-white font-mono">{wr.id}</td>
+                        <td className="p-4 text-white">{wr.owner}</td>
+                        <td className="p-4 text-slate-300">{wr.acre_feet} acre-ft</td>
+                        <td className="p-4 text-slate-400">{wr.priority_date}</td>
+                        <td className="p-4 text-slate-300">{wr.usage_ytd} acre-ft</td>
+                        <td className="p-4">
+                          <span className={`text-xs px-2 py-1 rounded-full ${wr.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>{wr.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'slv-compliance' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                  <p className="text-slate-400 text-sm">Current Aquifer Level</p>
+                  <p className="text-3xl font-bold text-white mt-1">43.2 ft</p>
+                  <span className="text-emerald-400 text-xs">+0.3 ft from last year</span>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                  <p className="text-slate-400 text-sm">Annual Recharge Rate</p>
+                  <p className="text-3xl font-bold text-white mt-1">12.1 in</p>
+                  <span className="text-emerald-400 text-xs">+23% improvement</span>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                  <p className="text-slate-400 text-sm">Sustainability Score</p>
+                  <p className="text-3xl font-bold text-emerald-400 mt-1">68/100</p>
+                  <span className="text-slate-400 text-xs">Target: 70 by 2026</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                <h3 className="text-white font-bold mb-4">6-Year Compliance History</h3>
+                <div className="space-y-3">
+                  {mockSLVHistory.map((m) => (
+                    <div key={m.year} className="flex items-center gap-4 p-3 bg-slate-800/50 rounded-lg">
+                      <span className="text-white font-medium w-16">{m.year}</span>
+                      <div className="flex-1 grid grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="text-slate-500">Aquifer:</span>
+                          <span className="text-white ml-2">{m.aquifer_level} ft</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Recharge:</span>
+                          <span className="text-white ml-2">{m.recharge_rate} in</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Score:</span>
+                          <span className="text-white ml-2">{m.sustainability_score}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Compliance:</span>
+                          <span className={m.compliance_rate >= 90 ? 'text-emerald-400 ml-2' : 'text-amber-400 ml-2'}>{m.compliance_rate}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'opportunities' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-bold">Investment Opportunities</h3>
+                <div className="flex items-center gap-2">
+                  {['all', 'water_right', 'land', 'tech', 'carbon'].map((f) => (
+                    <button key={f} className="px-3 py-1 bg-slate-900 border border-slate-800 rounded-lg text-slate-300 text-xs capitalize">{f.replace('_', ' ')}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                {mockOpportunities.map((opp) => (
+                  <div key={opp.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h4 className="text-white font-bold text-lg">{opp.name}</h4>
+                        <p className="text-slate-400 text-sm capitalize">{opp.type.replace('_', ' ')} • ID: {opp.id}</p>
+                      </div>
+                      <span className={`text-xs px-3 py-1 rounded-full ${opp.risk_level === 'low' ? 'bg-emerald-500/20 text-emerald-400' : opp.risk_level === 'medium' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'}`}>{opp.risk_level} risk</span>
+                    </div>
+                    <p className="text-slate-300 mb-4">{opp.description}</p>
+                    <div className="flex items-center gap-8">
+                      <div>
+                        <p className="text-slate-500 text-sm">Investment</p>
+                        <p className="text-white font-bold">${(opp.value / 1000000).toFixed(2)}M</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500 text-sm">Projected Return</p>
+                        <p className="text-emerald-400 font-bold">{opp.projected_return}%</p>
+                      </div>
+                      <button className="ml-auto px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium">View Details</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default InvestorDashboard;
+EOF

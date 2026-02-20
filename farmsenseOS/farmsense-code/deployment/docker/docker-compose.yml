@@ -1,0 +1,202 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with PostGIS for spatial data
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: farmsense-postgres
+    environment:
+      POSTGRES_DB: farmsense
+      POSTGRES_USER: farmsense_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - farmsense-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U farmsense_user -d farmsense"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # TimescaleDB for time-series sensor data
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: farmsense-timescale
+    environment:
+      POSTGRES_DB: farmsense_timeseries
+      POSTGRES_USER: timescale_user
+      POSTGRES_PASSWORD: ${TIMESCALE_PASSWORD:-changeme}
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - farmsense-network
+
+  # Redis for caching and message queue
+  redis:
+    image: redis:7-alpine
+    container_name: farmsense-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - farmsense-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # RabbitMQ for event-driven recalculation
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: farmsense-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: farmsense
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-changeme}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    networks:
+      - farmsense-network
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: farmsense-backend
+    environment:
+      DATABASE_URL: postgresql://farmsense_user:${DB_PASSWORD:-changeme}@postgres:5432/farmsense
+      TIMESCALE_URL: postgresql://timescale_user:${TIMESCALE_PASSWORD:-changeme}@timescaledb:5432/farmsense_timeseries
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://farmsense:${RABBITMQ_PASSWORD:-changeme}@rabbitmq:5672/
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+    volumes:
+      - ./backend/app:/app/app
+      - satellite_cache:/app/satellite_cache
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    networks:
+      - farmsense-network
+    command: uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Cloud Processing Worker (Celery)
+  cloud-processor:
+    build:
+      context: ./cloud-processing
+      dockerfile: Dockerfile
+    container_name: farmsense-cloud-processor
+    environment:
+      DATABASE_URL: postgresql://farmsense_user:${DB_PASSWORD:-changeme}@postgres:5432/farmsense
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://farmsense:${RABBITMQ_PASSWORD:-changeme}@rabbitmq:5672/
+      SENTINEL_API_KEY: ${SENTINEL_API_KEY}
+      LANDSAT_API_KEY: ${LANDSAT_API_KEY}
+    volumes:
+      - ./cloud-processing:/app
+      - satellite_cache:/app/satellite_cache
+      - ml_models:/app/models
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    networks:
+      - farmsense-network
+    command: celery -A tasks worker --loglevel=info --concurrency=4
+
+  # Farmer Dashboard (React)
+  farmer-dashboard:
+    build:
+      context: ./frontend/farmer-dashboard
+      dockerfile: Dockerfile
+    container_name: farmsense-farmer-dashboard
+    environment:
+      REACT_APP_API_URL: http://localhost:8000/api/v1
+      REACT_APP_MAPBOX_TOKEN: ${MAPBOX_TOKEN}
+    volumes:
+      - ./frontend/farmer-dashboard/src:/app/src
+    ports:
+      - "3000:3000"
+    networks:
+      - farmsense-network
+    command: npm start
+
+  # Regulatory Portal (React)
+  regulatory-portal:
+    build:
+      context: ./frontend/regulatory-portal
+      dockerfile: Dockerfile
+    container_name: farmsense-regulatory-portal
+    environment:
+      REACT_APP_API_URL: http://localhost:8000/api/v1
+    volumes:
+      - ./frontend/regulatory-portal/src:/app/src
+    ports:
+      - "3001:3000"
+    networks:
+      - farmsense-network
+
+  # Grafana for monitoring
+  grafana:
+    image: grafana/grafana:latest
+    container_name: farmsense-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: grafana-worldmap-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deployment/grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "3002:3000"
+    networks:
+      - farmsense-network
+    depends_on:
+      - postgres
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: farmsense-prometheus
+    volumes:
+      - ./deployment/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - farmsense-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+
+networks:
+  farmsense-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  timescale_data:
+  redis_data:
+  rabbitmq_data:
+  satellite_cache:
+  ml_models:
+  grafana_data:
+  prometheus_data:

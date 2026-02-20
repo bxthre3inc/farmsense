@@ -1,0 +1,49 @@
+{
+  "field_id": "field_001",
+  "grid_resolution_m": 20.0,
+  "idw_power": 2.0,
+  "search_radius_m": 100.0,
+  "min_sensors": 3,
+  "database_url": "postgresql://farmsense_user:changeme@cloud-db-host:5432/farmsense",
+  "local_cache_db": "/data/field_001_cache.db",
+  "sync_interval_sec": 300,
+  "compute_interval_sec": 900,
+  "device_id": "edge_rpi4_field_001",
+  
+  "field_boundary": {
+    "type": "Polygon",
+    "coordinates": [[
+      [-122.4200, 37.7740],
+      [-122.4160, 37.7740],
+      [-122.4160, 37.7770],
+      [-122.4200, 37.7770],
+      [-122.4200, 37.7740]
+    ]]
+  },
+  
+  "sensors": [
+    {"sensor_id": "s001", "latitude": 37.7749, "longitude": -122.4194},
+    {"sensor_id": "s002", "latitude": 37.7760, "longitude": -122.4180},
+    {"sensor_id": "s003", "latitude": 37.7755, "longitude": -122.4170}
+  ],
+  
+  "thresholds": {
+    "field_capacity": 0.35,
+    "wilting_point": 0.15,
+    "critical_moisture": 0.18,
+    "high_temp": 35.0,
+    "battery_low": 3.3
+  },
+  
+  "recalculation_modes": {
+    "stable": {"interval_sec": 43200, "description": "12 hours"},
+    "active": {"interval_sec": 900, "description": "15 minutes"},
+    "critical": {"interval_sec": 60, "description": "1 minute"}
+  },
+  
+  "alerts": {
+    "email": ["farmer@example.com"],
+    "sms": ["+1234567890"],
+    "webhook": "https://api.farmsense.io/alerts/webhook"
+  }
+}

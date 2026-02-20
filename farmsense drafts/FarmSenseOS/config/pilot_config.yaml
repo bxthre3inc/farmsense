@@ -1,0 +1,199 @@
+# FarmSense OS v1.0 - Pilot Configuration
+# 9-Field Hub-and-Spoke Deployment
+# San Luis Valley Research Center Partnership
+
+system:
+  version: "1.0.0"
+  jetson_id: "jetson_hub_001"
+  deployment_type: "pilot"
+  
+# Field topology - 1 Jetson serves 9 fields
+fields:
+  hub_field: "field_01"
+  spoke_fields:
+    - "field_02"
+    - "field_03"
+    - "field_04"
+    - "field_05"
+    - "field_06"
+    - "field_07"
+    - "field_08"
+    - "field_09"
+  total_acreage: 1170
+  average_field_size: 130  # acres
+
+# Sensor deployment
+sensors:
+  horizontal_blankets:
+    count_per_field: 11
+    total: 99
+    depths: [12, 18]  # inches
+    spacing: "10-14 acres per sensor"
+    
+  master_nails:
+    count_per_field: 1
+    total: 9
+    types:
+      medium_42in: 6  # Potatoes, barley
+      large_60in: 3   # Alfalfa
+    
+  total_measurement_points: 270
+  update_interval_minutes: 15
+
+# Gateway configuration - 1 Jetson = 1 dedicated gateway
+gateway:
+  hub_id: "gateway_001"
+  lora:
+    frequency_mhz: 915
+    range_miles: 15
+    topology: "star"
+  wifi_mesh:
+    frequency_ghz: 5
+    protocol: "802.11ac"
+  cellular_backup:
+    enabled: true
+    provider: "verizon"
+    use_case: "failover_critical_alerts"
+  power:
+    source: "solar"
+    battery_backup_hours: 72
+
+# Compute hardware
+compute:
+  primary:
+    device: "NVIDIA Jetson Nano"
+    count: 1
+    gpu_cores: 128
+    memory_gb: 4
+    storage_gb: 64
+    
+  backup:
+    hosted_cloud: true
+    cold_spare_on_site: true
+    cold_spare_preloaded: true
+    
+  failover:
+    heartbeat_interval_seconds: 5
+    timeout_seconds: 30
+    cloud_takeover: "immediate"
+    cold_spare_swap_time_minutes: 30
+
+# Data and storage
+storage:
+  local_path: "/var/farmsense/data"
+  retention_months: 24
+  compression_ratio: 10
+  estimated_size_gb: 4
+  
+  forensic:
+    hashing: "SHA-256"
+    signing: "hardware_module"
+    chain_integrity: true
+    audit_logging: true
+
+# Processing intervals
+timing:
+  sensor_reading_interval_minutes: 15
+  bayesian_update_interval_minutes: 15
+  kriging_interval_minutes: 15
+  cloud_sync_interval_seconds: 30
+  compliance_report_hour: 6  # 6 AM daily
+
+# Bayesian and Kriging parameters
+inference:
+  bayesian:
+    update_threshold_vwc: 0.03
+    learning_rate: 0.05
+    texture_adaptation: true
+    
+  kriging:
+    grid_resolution_meters: 1.0
+    variogram_model: "spherical"
+    nugget: 0.001
+    sill: 0.05
+    range_meters: 150
+    trend_weight: 0.3
+    gpu_accelerated: true
+
+# VRI integration
+vri:
+  enabled: true
+  protocol: "modbus_tcp"
+  host: "192.168.1.100"
+  port: 502
+  latency_target_seconds: 2
+  valve_response_timeout_seconds: 5
+  
+  thresholds:
+    irrigation_trigger_vwc: 0.15
+    irrigation_stop_vwc: 0.35
+    deep_percolation_critical_inches: 42
+    deep_percolation_threshold_vwc: 0.42
+    max_irrigation_duration_minutes: 120
+
+# Cloud and API
+cloud:
+  endpoint: "https://cloud.farmsense.io"
+  sync_interval_seconds: 30
+  state_backup: true
+  measurement_replication: true
+  
+  api:
+    enabled: true
+    port: 8080
+    rate_limit_per_hour: 1000
+    authentication: "oauth2"
+    
+    partners:
+      csu_slvrc:
+        organization: "Colorado State University - San Luis Valley Research Center"
+        access_level: "csu_partner"
+        allowed_fields: ["field_01", "field_02", "field_03", "field_04", "field_05",
+                        "field_06", "field_07", "field_08", "field_09"]
+        features:
+          - real_time_streams
+          - raw_measurements
+          - grid_exports
+          - lysimeter_comparison
+
+# Compliance and Water Court
+compliance:
+  water_court_trial_date: "2026-06-29"
+  state_engineer_reports: true
+  automated_daily: true
+  
+  forensic_requirements:
+    sha256_hashing: true
+    cryptographic_signing: true
+    immutable_audit_trail: true
+    manual_override_logging: true
+    data_admissibility: "court_ready"
+
+# Internship program (CSU partnership)
+internships:
+  enabled: true
+  positions:
+    - type: "ag_engineering"
+      count: 2
+      focus: "sensor validation, field deployment"
+    - type: "data_science"
+      count: 2
+      focus: "bayesian modeling, kriging optimization"
+  
+  datasets:
+    - "pilot_2026_spring"
+    - "lysimeter_comparison"
+
+# Target outcomes
+outcomes:
+  water_pumping_reduction_percent: 15-20
+  zero_deep_percolation_at_inches: [42, 60]
+  data_admissibility: "100% Water Court acceptance"
+  economic_impact_annual_millions: "25-50"
+  
+# Development timeline
+timeline:
+  phase1_installation: "2026-04-15 to 2026-05-15"
+  phase2_operations_start: "2026-06-01"
+  water_court_trial: "2026-06-29"
+  phase3_expansion: "2026-09-01"

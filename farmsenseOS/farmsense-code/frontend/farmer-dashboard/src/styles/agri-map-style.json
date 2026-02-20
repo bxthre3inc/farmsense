@@ -1,0 +1,78 @@
+{
+  "version": 8,
+  "name": "Agri-Focused",
+  "glyphs": "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+  "sources": {
+    "openfreemap": {
+      "type": "vector",
+      "url": "https://tile.ourmap.us/data/v3.json"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#f8f9fa"
+      }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "openfreemap",
+      "source-layer": "water",
+      "paint": {
+        "fill-color": "#aed9e0"
+      }
+    },
+    {
+      "id": "landuse-agriculture",
+      "type": "fill",
+      "source": "openfreemap",
+      "source-layer": "landuse",
+      "filter": [
+        "in",
+        "class",
+        "farmland",
+        "orchard",
+        "vineyard",
+        "plant_nursery"
+      ],
+      "paint": {
+        "fill-color": "#dcedc8",
+        "fill-opacity": 0.6
+      }
+    },
+    {
+      "id": "road-major",
+      "type": "line",
+      "source": "openfreemap",
+      "source-layer": "transportation",
+      "filter": [
+        "in",
+        "class",
+        "primary",
+        "secondary",
+        "tertiary"
+      ],
+      "paint": {
+        "line-color": "#cfd8dc",
+        "line-width": 1
+      }
+    },
+    {
+      "id": "admin-boundary",
+      "type": "line",
+      "source": "openfreemap",
+      "source-layer": "boundary",
+      "paint": {
+        "line-color": "#cfd8dc",
+        "line-width": 0.5,
+        "line-dasharray": [
+          2,
+          2
+        ]
+      }
+    }
+  ]
+}

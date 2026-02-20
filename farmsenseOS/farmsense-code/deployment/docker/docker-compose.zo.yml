@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  # === Data Layer ===
+  postgres-core:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-farmsense_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: farmsense_core
+    volumes:
+      - postgres_core_data:/var/lib/postgresql/data
+    networks:
+      - farmsense-core-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-farmsense_user} -d farmsense_core"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    environment:
+      POSTGRES_USER: ${TIMESCALE_USER:-timescale_user}
+      POSTGRES_PASSWORD: ${TIMESCALE_PASSWORD:-changeme}
+      POSTGRES_DB: farmsense_timeseries
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    networks:
+      - farmsense-core-net
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - farmsense-core-net
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    networks:
+      - farmsense-core-net
+    restart: unless-stopped
+
+  # === Processing Layer ===
+  backend-api:
+    build: ../../backend
+    image: farmsense-backend:latest
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-farmsense_user}:${POSTGRES_PASSWORD:-changeme}@postgres-core:5432/farmsense_core
+      TIMESCALE_URL: postgresql://${TIMESCALE_USER:-timescale_user}:${TIMESCALE_PASSWORD:-changeme}@timescaledb:5432/farmsense_timeseries
+      # Map DB is remote (Oracle) - secure connection required (e.g., VPN/TLS)
+      MAP_DATABASE_URL: ${MAP_DATABASE_URL} 
+    ports:
+      - "8000:8000"
+    networks:
+      - farmsense-core-net
+    depends_on:
+      postgres-core:
+        condition: service_healthy
+      timescaledb:
+        condition: service_started
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  cloud-processor:
+    image: farmsense-backend:latest
+    command: celery -A app.core.celery_app worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-farmsense_user}:${POSTGRES_PASSWORD:-changeme}@postgres-core:5432/farmsense_core
+      TIMESCALE_URL: postgresql://${TIMESCALE_USER:-timescale_user}:${TIMESCALE_PASSWORD:-changeme}@timescaledb:5432/farmsense_timeseries
+      CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    networks:
+      - farmsense-core-net
+    depends_on:
+      - rabbitmq
+      - redis
+    restart: unless-stopped
+
+  # === Presentation Layer ===
+  frontend-dashboard:
+    build: ../../frontend/farmer-dashboard
+    ports:
+      - "3000:80"
+    networks:
+      - farmsense-core-net
+    restart: unless-stopped
+
+  frontend-regulatory:
+    build: ../../frontend/regulatory-portal
+    ports:
+      - "3001:80"
+    networks:
+      - farmsense-core-net
+    restart: unless-stopped
+
+volumes:
+  postgres_core_data:
+  timescale_data:
+
+networks:
+  farmsense-core-net:
+    driver: bridge

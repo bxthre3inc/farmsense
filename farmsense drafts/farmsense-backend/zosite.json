@@ -1,0 +1,19 @@
+{
+  "name": "farmsense-backend",
+  "local_port": 55767,
+  "entrypoint": "bun run dev",
+  "env": {
+    "VITE_ZO_SITE_DEMO_VARIANT": "blank"
+  },
+  "publish": {
+    "label": "farmsense-backend",
+    "type": "http",
+    "entrypoint": "bun run prod",
+    "published_port": 55916,
+    "env": {
+      "NODE_ENV": "production",
+      "ZO_CLIENT_IDENTITY_TOKEN": "none",
+      "VITE_ZO_SITE_DEMO_VARIANT": "blank"
+    }
+  }
+}

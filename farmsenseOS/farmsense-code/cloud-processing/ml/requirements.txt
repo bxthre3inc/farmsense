@@ -1,0 +1,9 @@
+# Core Framework
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.5.2
+python-multipart==0.0.6
+
+# NOTE: This module contains mock/stub prediction code that contradicts
+# FarmSense's deterministic, anti-AI architecture. Consider full removal
+# in future phase. numpy, scikit-learn, pandas removed as unused.

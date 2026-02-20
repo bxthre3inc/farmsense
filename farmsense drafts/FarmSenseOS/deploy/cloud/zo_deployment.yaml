@@ -1,0 +1,106 @@
+# FarmSense OS - Zo Cloud Deployment
+# Main server for multi-tenant cloud instances (free/paid tiers)
+# Also hosts cloud mirrors for enterprise tier failovers
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: farmsense-cloud
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: farmsense-main-server
+  namespace: farmsense-cloud
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: farmsense-server
+  template:
+    metadata:
+      labels:
+        app: farmsense-server
+    spec:
+      containers:
+      - name: farmsense-api
+        image: farmsense/server:v1.0.0
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://farmsense:secure@postgres:5432/farmsense"
+        - name: REDIS_URL
+          value: "redis://redis:6379"
+        - name: TIER_DEFAULT
+          value: "free"
+        - name: ARCHIVE_RETENTION_YEARS
+          value: "10"
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+        volumeMounts:
+        - name: archive-storage
+          mountPath: /data/archives
+        - name: forensic-storage
+          mountPath: /data/forensic
+      volumes:
+      - name: archive-storage
+        persistentVolumeClaim:
+          claimName: farmsense-archive-pvc
+      - name: forensic-storage
+        persistentVolumeClaim:
+          claimName: farmsense-forensic-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: farmsense-api
+  namespace: farmsense-cloud
+spec:
+  selector:
+    app: farmsense-server
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: LoadBalancer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: farmsense-ingress
+  namespace: farmsense-cloud
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - api.farmsense.zo.computer
+    - farmers.farmsense.zo.computer
+    secretName: farmsense-tls
+  rules:
+  - host: api.farmsense.zo.computer
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: farmsense-api
+            port:
+              number: 8080
+  - host: farmers.farmsense.zo.computer
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: farmsense-farmer-portal
+            port:
+              number: 3000

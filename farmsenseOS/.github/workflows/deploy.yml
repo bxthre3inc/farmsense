@@ -1,0 +1,76 @@
+name: Deploy FarmSense Platform
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy-oracle:
+    name: Deploy Map Stack (Oracle)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.ORACLE_SSH_KEY }}
+
+      - name: Deploy to Oracle Instance
+        env:
+          HOST: ${{ secrets.ORACLE_HOST }}
+          USER: ${{ secrets.ORACLE_USER }}
+        run: |
+          # Add host key to known_hosts
+          mkdir -p ~/.ssh
+          ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
+
+          # Copy environment file
+          echo "${{ secrets.ENV_FILE_ORACLE }}" > .env.oracle
+          scp .env.oracle $USER@$HOST:~/farmsense-code/deployment/docker/.env
+
+          # Deploy
+          ssh -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
+            cd ~/farmsense-code
+            git pull origin main
+            cd deployment/docker
+            docker-compose -f docker-compose.oracle.yml up -d --build
+            docker system prune -f
+          EOF
+
+  deploy-zo:
+    name: Deploy Core Platform (Zo.computer)
+    runs-on: ubuntu-latest
+    needs: deploy-oracle # Ensure map DB is up first
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.ZO_SSH_KEY }}
+
+      - name: Deploy to Zo Instance
+        env:
+          HOST: ${{ secrets.ZO_HOST }}
+          USER: ${{ secrets.ZO_USER }}
+        run: |
+          # Add host key to known_hosts
+          mkdir -p ~/.ssh
+          ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
+
+          # Copy environment file
+          echo "${{ secrets.ENV_FILE_ZO }}" > .env.zo
+          scp .env.zo $USER@$HOST:~/farmsense-code/deployment/docker/.env
+
+          # Deploy
+          ssh -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
+            cd ~/farmsense-code
+            git pull origin main
+            cd deployment/docker
+            docker-compose -f docker-compose.zo.yml up -d --build
+            docker system prune -f
+          EOF

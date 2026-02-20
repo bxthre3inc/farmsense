@@ -1,0 +1,51 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: farmsense-backend
+  labels:
+    app: farmsense
+    component: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: farmsense
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: farmsense
+        component: backend
+    spec:
+      containers:
+      - name: backend
+        image: farmsense/backend:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: farmsense-secrets
+              key: database-url
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: farmsense-backend-svc
+spec:
+  selector:
+    app: farmsense
+    component: backend
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+  type: ClusterIP

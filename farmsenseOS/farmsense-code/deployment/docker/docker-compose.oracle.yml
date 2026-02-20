@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # === Map Data Layer ===
+  postgis-map:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_USER: ${MAP_DB_USER:-map_user}
+      POSTGRES_PASSWORD: ${MAP_DB_PASSWORD:-changeme}
+      POSTGRES_DB: farmsense_map
+    ports:
+      - "5432:5432" # Exposed for remote access (Secure with Firewall/VPN in prod)
+    volumes:
+      - postgres_map_data:/var/lib/postgresql/data
+    networks:
+      - farmsense-map-net
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${MAP_DB_USER:-map_user} -d farmsense_map" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # === Tile Serving Layer ===
+  # We run the backend image but focused on tile serving
+  # This ensures the Tile Logic (tiles.py) runs close to the data
+  map-service:
+    image: farmsense-backend:latest # Same image as core, or build specific
+    build: ../../backend
+    environment:
+      # It connects locally to the map database
+      DATABASE_URL: postgresql://${MAP_DB_USER:-map_user}:${MAP_DB_PASSWORD:-changeme}@postgis-map:5432/farmsense_map
+      # It doesn't strictly need the core/timescale DBs if only serving tiles,
+      # but if the app checks them on startup, we might need dummy vars or loose coupling.
+      # For now, we assume tiles.py only needs DATABASE_URL (which we point to map DB here)
+      MAP_DATABASE_URL: postgresql://${MAP_DB_USER:-map_user}:${MAP_DB_PASSWORD:-changeme}@postgis-map:5432/farmsense_map
+    ports:
+      - "8001:8000" # Exposed on different port if needed, or 80:8000 behind reverse proxy
+    networks:
+      - farmsense-map-net
+    depends_on:
+      postgis-map:
+        condition: service_healthy
+    restart: unless-stopped
+  # Optional: OpenFreeMap Mirror (if resources permit)
+  # tileserver-gl: ...
+
+volumes:
+  postgres_map_data:
+
+
+networks:
+  farmsense-map-net:
+    driver: bridge
